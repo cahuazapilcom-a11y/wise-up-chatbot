@@ -242,53 +242,7 @@ async function procesarMensaje({ from, nombreUsuario, textoOriginal }) {
     }
 
     if (userState.step === 'registro_observaciones') {
-    console.log('🔥 Entró al paso final de observaciones');
-    console.log('🔥 Texto recibido en observaciones:', textoOriginal);
-    console.log('🔥 Estado antes de guardar:', userState);
-
-    userState.datos.observaciones = userMessage === 'ninguna' ? '' : textoOriginal;
-
-    console.log('🔥 Datos listos para guardar:', userState.datos);
-
-    const resultado = await sheetsManager.guardarRegistro(userState.datos);
-
-    console.log('🔥 Resultado guardarRegistro:', resultado);
-
-    if (resultado.success) {
-        await sendWhatsAppText(
-            from,
-            `✅ *¡REGISTRO COMPLETADO CON ÉXITO!*\n\n📋 *Resumen de tu cita:*\n\n👤 *Nombre:* ${userState.datos.nombre}\n📱 *Teléfono:* ${userState.datos.telefono}\n📧 *Email:* ${userState.datos.email}\n🎂 *Edad:* ${userState.datos.edad}\n📚 *Programa:* ${userState.datos.programa}\n⏰ *Horario:* ${userState.datos.horario}\n${userState.datos.observaciones ? `💬 *Observaciones:* ${userState.datos.observaciones}\n` : ''}\n🎉 *Nuestro equipo se pondrá en contacto contigo pronto.*`
-        );
-    } else {
-        await sendWhatsAppText(
-            from,
-            `❌ Hubo un error al guardar tu información.\n\nPor favor contacta directamente al:\n📱 *900118664*\n\nO escribe *"6"* para hablar con un asesor.`
-        );
-    }
-
-    userState.step = 'inicio';
-    delete userState.datos;
-    await responderConMenu(from, nombreUsuario);
-    return;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+ 
         userState.datos.observaciones = userMessage === 'ninguna' ? '' : textoOriginal;
 
         const resultado = await sheetsManager.guardarRegistro(userState.datos);
