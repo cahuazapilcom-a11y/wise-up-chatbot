@@ -4,7 +4,7 @@ class SheetsManager {
     constructor() {
         this.sheets = null;
         this.spreadsheetId = process.env.SPREADSHEET_ID;
-        this.sheetName = process.env.SHEET_NAME || 'Hoja 1';
+        this.sheetName = process.env.SHEET_NAME || 'Hoja1';
     }
 
     async initialize() {
