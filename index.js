@@ -6,6 +6,11 @@ const SheetsManager = require('./config/sheets');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN || 'nodemon';
+
+// Middlewares
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Inicializar Google Sheets Manager
 const sheetsManager = new SheetsManager();
@@ -201,12 +206,16 @@ client.on('ready', async () => {
     console.log('\n✅ ========================================');
     console.log('   BOT DE WISE UP CONECTADO Y LISTO');
     console.log('========================================');
-    console.log(`📱 Número: ${client.info.wid.user}`);
-    console.log(`👤 Nombre: ${client.info.pushname}`);
+    console.log(`📱 Número: ${client.info?.wid?.user || 'No disponible'}`);
+    console.log(`👤 Nombre: ${client.info?.pushname || 'No disponible'}`);
     console.log('========================================\n');
 
     // Verificar conexión con Google Sheets
-    await sheetsManager.verificarConexion();
+    try {
+        await sheetsManager.verificarConexion();
+    } catch (error) {
+        console.error('❌ Error verificando Google Sheets:', error.message);
+    }
 });
 
 // Error handler
@@ -222,8 +231,11 @@ client.on('disconnected', (reason) => {
 client.on('message', async (message) => {
     try {
         const chatId = message.from;
-        const userMessage = message.body.toLowerCase().trim();
-        
+        const userMessage = (message.body || '').toLowerCase().trim();
+
+        // Ignorar mensajes vacíos
+        if (!message.body) return;
+
         // Ignorar mensajes de grupos
         if (message.from.includes('@g.us')) {
             return;
@@ -244,7 +256,7 @@ client.on('message', async (message) => {
         // ============================================
         // FLUJO DE REGISTRO DE CITA
         // ============================================
-        
+
         if (userState.step === 'registro_nombre') {
             userState.datos.nombre = message.body;
             userState.step = 'registro_telefono';
@@ -289,22 +301,26 @@ client.on('message', async (message) => {
         }
 
         if (userState.step === 'registro_observaciones') {
-            userState.datos.observaciones = message.body === 'ninguna' ? '' : message.body;
-            
+            userState.datos.observaciones = message.body.toLowerCase() === 'ninguna' ? '' : message.body;
+
             // Guardar en Google Sheets
             const resultado = await sheetsManager.guardarRegistro(userState.datos);
-            
+
             if (resultado.success) {
                 await message.reply(`✅ *¡REGISTRO COMPLETADO CON ÉXITO!*\n\n📋 *Resumen de tu cita:*\n\n👤 *Nombre:* ${userState.datos.nombre}\n📱 *Teléfono:* ${userState.datos.telefono}\n📧 *Email:* ${userState.datos.email}\n🎂 *Edad:* ${userState.datos.edad}\n📚 *Programa:* ${userState.datos.programa}\n⏰ *Horario:* ${userState.datos.horario}\n${userState.datos.observaciones ? `💬 *Observaciones:* ${userState.datos.observaciones}\n` : ''}\n🎉 *Nuestro equipo se pondrá en contacto contigo pronto.*\n\n¿Necesitas algo más?`);
             } else {
                 await message.reply(`❌ Hubo un error al guardar tu información.\n\nPor favor contacta directamente al:\n📱 *900118664*\n\nO escribe *"6"* para hablar con un asesor.`);
             }
-            
+
             userState.step = 'inicio';
             delete userState.datos;
-            
+
             setTimeout(async () => {
-                await message.reply(menuPrincipal(nombreUsuario));
+                try {
+                    await message.reply(menuPrincipal(nombreUsuario));
+                } catch (e) {
+                    console.error('❌ Error enviando menú final:', e.message);
+                }
             }, 3000);
             return;
         }
@@ -312,7 +328,7 @@ client.on('message', async (message) => {
         // ============================================
         // FLUJO PRINCIPAL
         // ============================================
-        
+
         if (userMessage === 'hola' || userMessage === 'menu' || userMessage === 'inicio' || userState.step === 'inicio') {
             await message.reply(menuPrincipal(nombreUsuario));
             userState.step = 'menu_principal';
@@ -331,21 +347,35 @@ client.on('message', async (message) => {
             if (userMessage === '1') {
                 await message.reply(INFO_WISE_UP.programas.adultos);
                 setTimeout(async () => {
-                    await message.reply('\n¿Quieres ver otro programa o volver al menú?\n\n' + menuProgramas);
+                    try {
+                        await message.reply('\n¿Quieres ver otro programa o volver al menú?\n\n' + menuProgramas);
+                    } catch (e) {
+                        console.error('❌ Error enviando submenú:', e.message);
+                    }
                 }, 2000);
             } else if (userMessage === '2') {
                 await message.reply(INFO_WISE_UP.programas.adolescentes);
                 setTimeout(async () => {
-                    await message.reply('\n¿Quieres ver otro programa o volver al menú?\n\n' + menuProgramas);
+                    try {
+                        await message.reply('\n¿Quieres ver otro programa o volver al menú?\n\n' + menuProgramas);
+                    } catch (e) {
+                        console.error('❌ Error enviando submenú:', e.message);
+                    }
                 }, 2000);
             } else if (userMessage === '3') {
                 await message.reply(INFO_WISE_UP.programas.presencial);
                 setTimeout(async () => {
-                    await message.reply('\n¿Quieres ver otro programa o volver al menú?\n\n' + menuProgramas);
+                    try {
+                        await message.reply('\n¿Quieres ver otro programa o volver al menú?\n\n' + menuProgramas);
+                    } catch (e) {
+                        console.error('❌ Error enviando submenú:', e.message);
+                    }
                 }, 2000);
             } else if (userMessage === '4') {
                 userState.step = 'menu_principal';
                 await message.reply(menuPrincipal(nombreUsuario));
+            } else {
+                await message.reply('Por favor elige una opción válida.\n\n' + menuProgramas);
             }
             return;
         }
@@ -354,7 +384,11 @@ client.on('message', async (message) => {
         if (userMessage === '2' && userState.step === 'menu_principal') {
             await message.reply(INFO_WISE_UP.metodologia);
             setTimeout(async () => {
-                await message.reply(menuPrincipal(nombreUsuario));
+                try {
+                    await message.reply(menuPrincipal(nombreUsuario));
+                } catch (e) {
+                    console.error('❌ Error enviando menú:', e.message);
+                }
             }, 2000);
             return;
         }
@@ -363,7 +397,11 @@ client.on('message', async (message) => {
         if (userMessage === '3' && userState.step === 'menu_principal') {
             await message.reply(INFO_WISE_UP.ubicacion);
             setTimeout(async () => {
-                await message.reply(menuPrincipal(nombreUsuario));
+                try {
+                    await message.reply(menuPrincipal(nombreUsuario));
+                } catch (e) {
+                    console.error('❌ Error enviando menú:', e.message);
+                }
             }, 2000);
             return;
         }
@@ -372,7 +410,11 @@ client.on('message', async (message) => {
         if (userMessage === '4' && userState.step === 'menu_principal') {
             await message.reply(INFO_WISE_UP.testimonios);
             setTimeout(async () => {
-                await message.reply(menuPrincipal(nombreUsuario));
+                try {
+                    await message.reply(menuPrincipal(nombreUsuario));
+                } catch (e) {
+                    console.error('❌ Error enviando menú:', e.message);
+                }
             }, 2000);
             return;
         }
@@ -389,26 +431,33 @@ client.on('message', async (message) => {
         if (userMessage === '6' && userState.step === 'menu_principal') {
             await message.reply(`💬 *CONTACTO DIRECTO CON ASESOR*\n\nPuedes contactar directamente con nuestro Jefe Comercial:\n\n📱 *900118664*\n\n🕐 *Horario de atención:*\nLunes a Viernes: 9:00 AM - 8:00 PM\nSábados: 9:00 AM - 2:00 PM\n\n¡Estamos disponibles para atenderte! 😊`);
             setTimeout(async () => {
-                await message.reply(menuPrincipal(nombreUsuario));
+                try {
+                    await message.reply(menuPrincipal(nombreUsuario));
+                } catch (e) {
+                    console.error('❌ Error enviando menú:', e.message);
+                }
             }, 2000);
             return;
         }
 
         // Respuesta por defecto
         await message.reply(`Lo siento, no entendí tu mensaje. 😅\n\nPor favor, selecciona una opción del menú:\n\n${menuPrincipal(nombreUsuario)}`);
-        
+
     } catch (error) {
         console.error('❌ Error al procesar mensaje:', error);
-        await message.reply('❌ Ocurrió un error. Por favor, escribe *"menu"* para volver a empezar.');
+        try {
+            await message.reply('❌ Ocurrió un error. Por favor, escribe *"menu"* para volver a empezar.');
+        } catch (e) {
+            console.error('❌ No se pudo responder al mensaje:', e.message);
+        }
     }
 });
 
 // ============================================
-// SERVIDOR EXPRESS PARA RENDER
+// RUTAS EXPRESS
 // ============================================
 
-app.use(express.json());
-
+// Página principal
 app.get('/', (req, res) => {
     res.send(`
         <!DOCTYPE html>
@@ -420,13 +469,14 @@ app.get('/', (req, res) => {
                 h1 { color: #c41e3a; }
                 .status { padding: 10px; background: #d4edda; border-radius: 5px; margin: 20px 0; }
                 .info { background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 10px 0; }
+                code { background: #eee; padding: 2px 6px; border-radius: 4px; }
             </style>
         </head>
         <body>
             <h1>🎓 Wise Up WhatsApp ChatBot</h1>
             <div class="status">
                 <h2>✅ Bot funcionando correctamente</h2>
-                <p><strong>Estado:</strong> Conectado</p>
+                <p><strong>Estado:</strong> Activo</p>
                 <p><strong>Fecha:</strong> ${new Date().toLocaleString('es-PE')}</p>
             </div>
             <div class="info">
@@ -434,21 +484,24 @@ app.get('/', (req, res) => {
                 <p><strong>Versión:</strong> 1.0.0</p>
                 <p><strong>Node.js:</strong> ${process.version}</p>
                 <p><strong>Plataforma:</strong> ${process.platform}</p>
+                <p><strong>Webhook Meta:</strong> <code>/webhook</code></p>
             </div>
         </body>
         </html>
     `);
 });
 
+// Health check
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
+    res.json({
+        status: 'OK',
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         memory: process.memoryUsage()
     });
 });
 
+// Estado simple
 app.get('/status', (req, res) => {
     res.json({
         bot: 'Wise Up ChatBot',
@@ -458,17 +511,55 @@ app.get('/status', (req, res) => {
     });
 });
 
+// ============================================
+// WEBHOOK META / WHATSAPP CLOUD API
+// ============================================
+
+// Verificación del webhook por Meta
+app.get('/webhook', (req, res) => {
+    const mode = req.query['hub.mode'];
+    const token = req.query['hub.verify_token'];
+    const challenge = req.query['hub.challenge'];
+
+    console.log('📥 Verificación webhook recibida:', req.query);
+
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+        console.log('✅ Webhook verificado correctamente con Meta');
+        return res.status(200).send(challenge);
+    }
+
+    console.log('❌ Error de verificación de webhook');
+    return res.sendStatus(403);
+});
+
+// Recepción de eventos enviados por Meta
+app.post('/webhook', (req, res) => {
+    console.log('📩 Evento recibido en /webhook:');
+    console.log(JSON.stringify(req.body, null, 2));
+
+    return res.sendStatus(200);
+});
+
 // Inicializar servidor
 app.listen(PORT, async () => {
     console.log('\n🚀 ========================================');
     console.log(`   SERVIDOR EXPRESS EN PUERTO ${PORT}`);
     console.log('========================================\n');
-    
+
     // Inicializar Google Sheets
-    await sheetsManager.initialize();
-    
-    // Inicializar cliente de WhatsApp
-    client.initialize();
+    try {
+        await sheetsManager.initialize();
+        console.log('✅ Google Sheets API inicializada correctamente');
+    } catch (error) {
+        console.error('❌ Error al inicializar Google Sheets:', error.message);
+    }
+
+    // Inicializar cliente de WhatsApp Web
+    try {
+        client.initialize();
+    } catch (error) {
+        console.error('❌ Error al inicializar cliente de WhatsApp:', error.message);
+    }
 });
 
 // Manejo de errores no capturados
