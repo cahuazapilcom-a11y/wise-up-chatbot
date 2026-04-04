@@ -8,15 +8,6 @@ const { getActiveChats } = require('./bot/processor');
 const webhookRouter = require('./routes/webhook');
 const crmRouter     = require('./routes/crm');
 
-
-const { getActiveChats } = require('./bot/processor');
-const webhookRouter = require('./routes/webhook');
-const crmRouter     = require('./routes/crm');
-
-console.log('TIPO webhookRouter:', typeof webhookRouter);
-console.log('TIPO crmRouter:', typeof crmRouter);
-console.log('webhookRouter:', webhookRouter);
-console.log('crmRouter:', crmRouter);
  
 const app  = express();
 const PORT = process.env.PORT || 3000;
